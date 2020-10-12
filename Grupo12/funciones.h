@@ -32,10 +32,10 @@ typedef struct {
 TS_Reg tabla_simbolo[TAMANIO_TABLA];
 
 void mensajeDeError(enum tipoError error,const char* info, int linea);
-void agregarVarATabla(char* nombre,int esCteConNombre);
+void agregarVarATabla(char* nombre,int esCteConNombre,int linea);
 void agregarTiposDatosATabla(void);
 void agregarCteATabla(int num);
-void chequearVarEnTabla(char* nombre);
+void chequearVarEnTabla(char* nombre,int linea);
 int buscarEnTabla(char * nombre);
 void grabarTabla(void);
 char* normalizarNombre(const char* nombre);

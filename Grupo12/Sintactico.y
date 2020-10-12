@@ -90,11 +90,11 @@ tipo_dato:
 
 lista_id: 
       lista_id COMA ID                                        { printf("R 10: lista_id => lista_id COMA ID \n");
-                                                              agregarVarATabla(yylval.valor_string,!ES_CTE_CON_NOMBRE);
+                                                              agregarVarATabla(yylval.valor_string,!ES_CTE_CON_NOMBRE,yylineno);
 										  					  cantVarsADeclarar++;
                                                               }
 	| ID                                                      { printf("R 11: lista_id => lista_id \n");
-                                                              agregarVarATabla(yylval.valor_string,!ES_CTE_CON_NOMBRE);
+                                                              agregarVarATabla(yylval.valor_string,!ES_CTE_CON_NOMBRE,yylineno);
 										  					  varADeclarar1 = indice_tabla; /* Guardo posicion de primer variable de esta lista de declaracion. */
 										 					  cantVarsADeclarar = 1;
                                                               };
@@ -149,7 +149,7 @@ seleccion_if_sin_llave:
 
 asignacion: 
       ID DOS_PUNTOS expresion PUNTO_Y_COMA                    { printf("R 23: asignacion => ID DOS_PUNTOS expresion PUNTO_Y_COMA\n");
-                                                                  chequearVarEnTabla($1);
+                                                                  chequearVarEnTabla($1,yylineno);
                                                                   validarCteEnTabla($1,yylineno);//Validar si no se asigna a una cte
                                                                   };
 		  														
@@ -181,7 +181,7 @@ entrada_salida:
 decl_constante: 
       CONST ID IGUAL CONST_INT { agregarCteATabla(CteInt); } PUNTO_Y_COMA                   	  
                                                                         { printf("R 33: decl_constante => CONST ID IGUAL CONST_INT PUNTO_Y_COMA \n");
-                                                                        agregarVarATabla($2,ES_CTE_CON_NOMBRE);
+                                                                        agregarVarATabla($2,ES_CTE_CON_NOMBRE,yylineno);
                                                                         cantVarsADeclarar++;
                                                                         varADeclarar1 = indice_tabla;
                                                                         tipoDatoADeclarar[indiceDatoADeclarar++] = Integer;
@@ -189,7 +189,7 @@ decl_constante:
                                                                         };	  											
       | CONST ID IGUAL CONST_STR { agregarCteATabla(CteString);} PUNTO_Y_COMA               
                                                                         { printf("R 34: decl_constante => CONST ID IGUAL CONST_STR PUNTO_Y_COMA  \n");
-                                                                        agregarVarATabla($2,ES_CTE_CON_NOMBRE);
+                                                                        agregarVarATabla($2,ES_CTE_CON_NOMBRE,yylineno);
                                                                         cantVarsADeclarar++;
                                                                         varADeclarar1 = indice_tabla;
                                                                         tipoDatoADeclarar[indiceDatoADeclarar++] = String;
@@ -197,7 +197,7 @@ decl_constante:
                                                                         }
       | CONST ID IGUAL CONST_FLOAT {agregarCteATabla(CteFloat);} PUNTO_Y_COMA             
                                                                         { printf("R 35: decl_constante => CONST ID IGUAL CONST_FLOAT PUNTO_Y_COMA  \n");
-                                                                        agregarVarATabla($2,ES_CTE_CON_NOMBRE);
+                                                                        agregarVarATabla($2,ES_CTE_CON_NOMBRE,yylineno);
                                                                         cantVarsADeclarar++;
                                                                         varADeclarar1 = indice_tabla;
                                                                         tipoDatoADeclarar[indiceDatoADeclarar++] = Float;
@@ -211,7 +211,7 @@ termino:
 factor:           
       ID                                                      {
                                                               printf("R 39: factor => ID es: %s\n", yylval.valor_string);
-                                                              chequearVarEnTabla(yylval.valor_string);}
+                                                              chequearVarEnTabla(yylval.valor_string,yylineno);}
       | CONST_INT                                             { printf("R 40: factor => CONST_INT: %d\n", yylval.valor_int);
                                                               agregarCteATabla(CteInt);}
       | CONST_FLOAT                                           { printf("R 41: factor => CONST_FLOAT: %f\n",yylval.valor_float);

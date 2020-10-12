@@ -8,7 +8,8 @@ extern int cantVarsADeclarar;
 extern int tipoDatoADeclarar[TAMANIO_TABLA];
 extern int indiceDatoADeclarar;
 extern int indice_tabla;
-
+char msg[100];
+		
 void mensajeDeError(enum tipoError error,const char* info, int linea)
 {
   switch(error){ 
@@ -17,7 +18,7 @@ void mensajeDeError(enum tipoError error,const char* info, int linea)
             break ;
 
 		case ErrorSintactico: 
-            printf("ERROR Sintactico en la linea. Descripcion: %s.\n",linea,info);
+            printf("ERROR Sintactico en la linea %d. Descripcion: %s.\n",linea,info);
             break ;
   }
 
@@ -45,7 +46,7 @@ int yyerror(char* mensaje)
 	exit (1);
  }
 
- void agregarVarATabla(char* nombre,int esCteConNombre){
+ void agregarVarATabla(char* nombre,int esCteConNombre,int linea){
 	 //Si se llena, error
 	 if(indice_tabla >= TAMANIO_TABLA - 1){
 		 printf("Error: No hay mas espacio en la tabla de simbolos.\n");
@@ -61,9 +62,8 @@ int yyerror(char* mensaje)
 	 }
 	 else 
 	 {
-	 char msg[100] ;
-	 sprintf(msg,"'%s' ya se encuentra declarada previamente.", nombre);
-	 yyerror(msg);
+	 	sprintf(msg,"'%s' ya se encuentra declarada previamente.", nombre);
+	 	mensajeDeError(ErrorSintactico,msg,linea);
 	}
  }
 
@@ -222,12 +222,11 @@ void agregarCteATabla(int num){
 }
 
 /** Se fija si ya existe una entrada con ese nombre en la tabla de simbolos. Si no existe, muestra un error de variable sin declarar y aborta la compilacion. */
-void chequearVarEnTabla(char* nombre){
+void chequearVarEnTabla(char* nombre,int linea){
 	//Si no existe en la tabla, error
 	if( buscarEnTabla(nombre) == -1){
-		char msg[100];
 		sprintf(msg,"La variable '%s' debe ser declarada previamente en la seccion de declaracion de variables", nombre);
-		yyerror(msg);
+		mensajeDeError(ErrorSintactico,msg,linea);
 	}
 	//Si existe en la tabla, dejo que la compilacion siga
 }
@@ -235,9 +234,7 @@ void chequearVarEnTabla(char* nombre){
 void validarCteEnTabla(char* nombre,int linea){
 	int pos = buscarEnTabla(nombre); 
 	if(tabla_simbolo[pos].esCteConNombre){
-		char msg[100];
-		sprintf(msg,"Error en linea: %d No se puede asignar valor a la cte",linea, nombre);
-		yyerror(msg);
+		mensajeDeError(ErrorSintactico,"No se puede asignar valor a la cte",linea);
 	}
 }
 
