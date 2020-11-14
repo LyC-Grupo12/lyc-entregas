@@ -46,7 +46,8 @@ COMENTARIO             {INICIO_COMENTARIO}{CADENA}*{FIN_COMENTARIO}|{INICIO_COME
                             return STRING;
                         }
 "if"			        { return IF;}
-"Else"   		        { return ELSE;}
+"else"   		        { return ELSE;}
+"endif"   		        { return ENDIF;}
 "while"			        { return WHILE;}
 "+"			            { return OP_SUM;}
 "-"			            { return OP_RES;}
@@ -75,8 +76,7 @@ COMENTARIO             {INICIO_COMENTARIO}{CADENA}*{FIN_COMENTARIO}|{INICIO_COME
 			                  return ID;
 			                }
 							mensajeDeError(ErrorLexico,"El nombre de variable excede el limite permitido.",yylineno);
-			              }    
-                        
+			            }                            
 {CONST_INT}		        { 
                         if(atoll(yytext)>=-32768 && atoll(yytext)<=32767){
 		                      	yylval.valor_int = atoi(yytext);
@@ -90,7 +90,7 @@ COMENTARIO             {INICIO_COMENTARIO}{CADENA}*{FIN_COMENTARIO}|{INICIO_COME
 							return CONST_STR;
 							}
 							mensajeDeError(ErrorLexico,"El contenido de una cadena excede el limite permitido.",yylineno);
-						  }
+						}
 {CONST_FLOAT}		    { 
                         if(atof(yytext)>=-3.40282347e+38F && atof(yytext)<=3.40282347e+38F){
 		                    	yylval.valor_float = atof(yytext);

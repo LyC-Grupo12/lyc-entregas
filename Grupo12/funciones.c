@@ -222,13 +222,16 @@ void agregarCteATabla(int num){
 }
 
 /** Se fija si ya existe una entrada con ese nombre en la tabla de simbolos. Si no existe, muestra un error de variable sin declarar y aborta la compilacion. */
-void chequearVarEnTabla(char* nombre,int linea){
+int chequearVarEnTabla(char* nombre,int linea){
+	int pos=0;
+	pos=pos=buscarEnTabla(nombre);
 	//Si no existe en la tabla, error
-	if( buscarEnTabla(nombre) == -1){
+	if( pos == -1){
 		sprintf(msg,"La variable '%s' debe ser declarada previamente en la seccion de declaracion de variables", nombre);
 		mensajeDeError(ErrorSintactico,msg,linea);
 	}
 	//Si existe en la tabla, dejo que la compilacion siga
+	return pos;
 }
 
 void validarCteEnTabla(char* nombre,int linea){
@@ -236,6 +239,39 @@ void validarCteEnTabla(char* nombre,int linea){
 	if(tabla_simbolo[pos].esCteConNombre){
 		mensajeDeError(ErrorSintactico,"No se puede asignar valor a la cte",linea);
 	}
+}
+
+//Verifica el tipo de dato si es compatible entre todos los nodos del sub arbol
+int verificarTipoDato(tArbol * p,int linea){
+	tArbol *pAux = hijoMasIzq(p);//tipo a comparar contra el resto
+	int tipoAux = (*pAux)->info.tipoDato;
+	verificarTipo(p,tipoAux,linea);
+}
+
+void verificarTipo(tArbol* p,int tipoAux,int linea){
+	int compatible,tipo;
+	if (*p){
+        verificarTipo(&(*p)->izq,tipoAux,linea);
+        verificarTipo(&(*p)->der,tipoAux,linea);
+		if((*p)->izq==NULL && (*p)->der==NULL){
+			tipo = (*p)->info.tipoDato;
+			compatible=verificarCompatible(tipo,tipoAux);
+		}
+		if(!compatible)
+			mensajeDeError(ErrorSintactico,"Id/Cte de tipo no compatible",linea);
+	}
+}
+
+int verificarCompatible(int tipo,int tipoAux){
+	if(tipo==tipoAux)
+		return TRUE;
+	if(tipo==CteInt && tipoAux==Integer || tipoAux==CteInt && tipo==Integer )
+		return TRUE;
+	if(tipo==CteFloat && tipoAux==Float || tipoAux==CteFloat && tipo==Float )
+		return TRUE;
+	if(tipo==CteString && tipoAux==String || tipoAux==CteString && tipo==String )
+		return TRUE;
+	return FALSE;
 }
 
 char* normalizarNombre(const char* nombre){
@@ -292,4 +328,93 @@ void agregarValorACte(int tipo){
 		break;	
 		}
 	}
+}
+
+tNodo* crearNodo(const char* dato, tNodo *pIzq, tNodo *pDer){
+    
+    tNodo* nodo = malloc(sizeof(tNodo));   
+    tInfo info;
+    strcpy(info.dato, dato);
+    nodo->info = info;
+    nodo->izq = pIzq;
+    nodo->der = pDer;
+
+    return nodo;
+}
+
+tNodo* crearHoja(char* dato,int tipo){	
+    tNodo* nodoNuevo = (tNodo*)malloc(sizeof(tNodo));
+
+	strcpy(nodoNuevo->info.dato, dato);
+	nodoNuevo->info.tipoDato = tipo;
+    nodoNuevo->izq = NULL;
+    nodoNuevo->der = NULL;
+
+    return nodoNuevo;
+}
+
+tArbol * hijoMasIzq(tArbol *p)
+{
+    if(*p)
+    {
+        if((*p)->izq)
+            return hijoMasIzq(&(*p)->izq);
+        else
+            return p;
+    }
+    return NULL;
+}
+
+void enOrden(tArbol *p)
+{
+    if (*p)
+    {
+        enOrden(&(*p)->izq);
+        verNodo((*p)->info.dato);
+        enOrden(&(*p)->der);
+    }
+}
+
+void postOrden(tArbol *p)
+{
+    if (*p)
+    {
+        postOrden(&(*p)->izq);
+        postOrden(&(*p)->der);
+		verNodo((*p)->info.dato);		
+    }
+}
+
+void verNodo(const char *p)
+{
+    printf("%s ", p);
+}
+
+
+void _tree_print_dot_subtree(int nro_padre, tNodo *padre, int nro, tArbol *nodo, FILE* stream)
+{
+    if (*nodo != NULL)
+    {    
+        fprintf(stream, "x%d [label=<%s>];\n",nro,(*nodo)->info.dato);
+        if (padre != NULL){
+            fprintf(stream, "x%d -> x%d;\n",nro_padre,nro);
+        }   
+        _tree_print_dot_subtree(nro, *nodo, 2 * nro + 1, &(*nodo)->izq, stream);
+        _tree_print_dot_subtree(nro, *nodo, 2 * nro + 2, &(*nodo)->der, stream);
+        
+    }
+    /* else {
+        fprintf(stream, "nil%d [label=nil,fontcolor=gray,shape=none];\n",nro);
+        fprintf(stream, "x%d -> nil%d;\n",nro_padre,nro);
+        printf("nil%d [label=nil,fontcolor=gray,shape=none];\n",nro);
+        printf("x%d -> nil%d;\n",nro_padre,nro);
+    } */
+}
+
+void tree_print_dot(tArbol *p,FILE* stream)
+{
+    fprintf(stream, "digraph BST {\n");
+    if (*p)
+        _tree_print_dot_subtree(-1, NULL, 0, &(*p), stream);
+    fprintf(stream, "}");
 }
