@@ -1,17 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-
-
-struct m10_stack_entry {
-  tNodo *dato;
-  struct m10_stack_entry *next;
-};
-
-struct m10_stack_t
-{
-  struct m10_stack_entry *tope;
-  size_t tam; 
-};
+#include "Funciones.h"
 
 struct m10_stack_t *crearPila(void)
 {
@@ -23,15 +12,6 @@ struct m10_stack_t *crearPila(void)
   }
   return stack;
 };
-
-tNodo *copiarDato(tNodo *);
-void ponerenPila(struct m10_stack_t *, tNodo *value);
-tNodo *topedePila(struct m10_stack_t *);
-void sacardePila(struct m10_stack_t *);
-void vaciarPila(struct m10_stack_t *);
-void borrarPila(struct m10_stack_t **);
-
-typedef struct m10_stack_t m10_stack_t;
 
 tNodo *copiarDato(tNodo *str)
 {
@@ -65,10 +45,7 @@ void sacardePila(struct m10_stack_t *theStack)
 {
   if (theStack->tope != NULL)
   {
-    struct m10_stack_entry *tmp = theStack->tope;
     theStack->tope = theStack->tope->next;
-    free(tmp->dato);
-    free(tmp);
     theStack->tam--;
   }
 }

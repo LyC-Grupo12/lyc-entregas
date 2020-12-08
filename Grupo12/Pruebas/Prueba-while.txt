@@ -1,0 +1,21 @@
+DIM [a,b,c,f,cnt] AS [Float,Integer,Integer,Float,Integer]
+
+a:0.5;
+b:10;
+c:25;
+f:1.5;
+
+PUT "inserte un numero:";
+GET cnt;
+
+
+*-Ejemplo de while con expresiones-* 
+
+while (cnt < (c-b)){
+        cnt:cnt+1;
+        PUT "contador:";
+        PUT cnt;
+}
+
+
+

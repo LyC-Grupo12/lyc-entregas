@@ -1,0 +1,34 @@
+DIM [a,b,c,varf,max] AS [Integer,Integer,Integer,Float,Integer]
+
+b: 10;
+c:25;
+varf: 2.3;
+
+*-Ejemplo de if Integer-* 
+max:b;
+if (c > max)
+        max:c;
+endif
+
+a:max;
+PUT "valor de max:";
+PUT a;
+
+*-Ejemplo de if Float-* 
+if (varf < 1.5)
+        PUT "varf es menor que 1.5";
+else
+        PUT "varf es mayor que 1.5:";
+        PUT varf;
+endif
+
+*-Ejemplo de if anidado-* 
+if (varf < 1.5)
+        PUT "varf es menor que 1.5";
+else
+        if (max < 50)
+                PUT "max es menor que 50";
+        endif
+endif
+
+

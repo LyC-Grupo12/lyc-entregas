@@ -1,0 +1,23 @@
+DIM [a,b,c] AS [Integer,Integer,Integer]
+DIM [e,f,g] AS [Float,Float,Float]
+
+b:10;
+c:5;
+a:maximo(60,5,b,c);
+
+PUT a;
+
+f:80.8;
+g:7.6;
+
+e:maximo(f,6.5,g,66.7);
+PUT e;
+
+if(maximo(5,7,a)==60)
+	PUT "OK";
+endif
+
+
+if(maximo(5,a)==100)
+	PUT "Error";
+endif

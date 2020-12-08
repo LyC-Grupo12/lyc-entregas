@@ -15,9 +15,12 @@ FILE *fp;
 FILE *graph;
 char str_aux[50];
 char str_auxcmp[10];
+char str_auxetiq[10];
 m10_stack_t* pilaExpresion;
 m10_stack_t* pilaBloque;
 m10_stack_t* pilaCondicion;
+m10_stack_t* pilaEtiq;
+m10_stack_t* pilaEtiqExpMax;
 
 /* Cosas para la declaracion de variables y la tabla de simbolos */
 int varADeclarar1 = 0;
@@ -26,6 +29,10 @@ int tipoDatoADeclarar[TAMANIO_TABLA];
 int indiceDatoADeclarar = 0;
 int indice_tabla = -1;
 int contCuerpo = 0;
+int auxOperaciones=0;
+int contCond=0;
+int contExpMax=0;
+int tipoDatoMax=SinTipo;
 
 int yystopparser=0;
 FILE  *yyin;
@@ -142,6 +149,11 @@ sentencia:
 
 ciclo: 
       WHILE P_A condicion P_C                   { 
+                                                      contCond++;
+                                                      sprintf(str_auxetiq,"%d",contCond);
+                                                      auxEtiqPtr = malloc(sizeof(tNodo));
+                                                      strcpy(auxEtiqPtr->info.dato,str_auxetiq);
+                                                      ponerenPila(pilaEtiq,auxEtiqPtr);
                                                       if(bloquePtr){
                                                             ponerenPila(pilaBloque,bloquePtr);
                                                             bloquePtr=NULL;
@@ -156,23 +168,31 @@ ciclo:
                                                       fprintf(fp,"R 19: ciclo => WHILE P_A condicion P_C  L_A bloque L_C\n");
                                                       if (topedePila(pilaCondicion)){
                                                             condicionPtr = topedePila(pilaCondicion);
-                                                            auxCondicionPtr = (tNodo*)malloc(sizeof(tNodo));
-                                                            strcpy(auxCondicionPtr->info.dato,condicionPtr->info.dato);
-                                                            auxCondicionPtr->izq = condicionPtr->izq;
-                                                            auxCondicionPtr->der = condicionPtr->der;
-                                                            condicionPtr = auxCondicionPtr;
                                                             sacardePila(pilaCondicion);
                                                       }
-                                                      bloqueWhPtr = crearNodo("WHILE",condicionPtr,bloquePtr);
+
+                                                      auxEtiqPtr=topedePila(pilaEtiq);
+                                                      sprintf(str_aux,"#FIN%s",auxEtiqPtr->info.dato);
+					                        auxWhilePtr=crearHoja(str_aux,SinTipo);
+                                                      sprintf(str_aux,"#BLOQ%s:",auxEtiqPtr->info.dato); 
+                                                      condicionPtr=crearNodo(str_aux,condicionPtr,auxWhilePtr);
+
+                                                      sprintf(str_aux,"#COND%s:",auxEtiqPtr->info.dato);					
+                                                      auxWhilePtr=crearHoja(str_aux,SinTipo);
+
+                                                      condicionPtr=crearNodo("Cuerpo",auxWhilePtr,condicionPtr);
+                                                      sprintf(str_aux,"#jmp COND%s",auxEtiqPtr->info.dato);
+                                                      bloqueWhPtr=crearNodo(str_aux , condicionPtr , bloquePtr );
+                                                      sprintf(str_aux,"#FIN%s:",auxEtiqPtr->info.dato); 
+                                                      bloqueWhPtr=crearNodo(str_aux,bloqueWhPtr,NULL);
 
                                                       if (topedePila(pilaBloque)){
                                                             bloquePtr = topedePila(pilaBloque);
-                                                            auxBloquePtr = (tNodo*)malloc(sizeof(tNodo));
-                                                            strcpy(auxBloquePtr->info.dato,bloquePtr->info.dato);
-                                                            auxBloquePtr->izq = bloquePtr->izq;
-                                                            auxBloquePtr->der = bloquePtr->der;
-                                                            bloquePtr = auxBloquePtr;
                                                             sacardePila(pilaBloque);
+                                                      }
+                                                      
+                                                      if (topedePila(pilaEtiq)){
+                                                            sacardePila(pilaEtiq);
                                                       }
                                                 };
 
@@ -182,21 +202,33 @@ condicion:
                                                             verificarTipoDato(&condicionPtr,yylineno);
                                                             }
       | comparacion { comparacionAuxPtr = comparacionPtr; } OP_AND comparacion {
+                                                            verificarTipoDato(&comparacionAuxPtr,yylineno);
+                                                            sprintf(str_aux,"#FIN%s",topedePila(pilaEtiq));
+                                                            auxIfPtr=crearHoja(str_aux,SinTipo);
+                                                            comparacionAuxPtr = crearNodo("Cuerpo",comparacionAuxPtr,auxIfPtr);
                                                             condicionPtr = crearNodo("AND",comparacionAuxPtr,comparacionPtr);
-                                                            verificarTipoDato(&condicionPtr,yylineno);
+                                                            
+                                                            verificarTipoDato(&comparacionPtr,yylineno);
                                                             }
       | comparacion { comparacionAuxPtr = comparacionPtr; } OP_OR comparacion {
+                                                            verificarTipoDato(&comparacionAuxPtr,yylineno);
+                                                            sprintf(str_aux,"#BLOQ%s",topedePila(pilaEtiq));
+				                                    auxIfPtr=crearHoja(str_aux,SinTipo);
+				                                    invertirSalto(&comparacionAuxPtr);
+				                                    comparacionAuxPtr = crearNodo("Cuerpo",comparacionAuxPtr,auxIfPtr);
+
                                                             condicionPtr = crearNodo("OR",comparacionAuxPtr,comparacionPtr);
-                                                            verificarTipoDato(&condicionPtr,yylineno);
+                                                            verificarTipoDato(&comparacionPtr,yylineno);	
                                                             }
 
       | OP_NOT comparacion                                  {
+                                                            invertirSalto(&comparacionPtr);
                                                             condicionPtr = crearNodo("NOT",comparacionPtr,NULL);
                                                             verificarTipoDato(&condicionPtr,yylineno);
                                                             };
 
 comparacion: 
-      expresion { exprCMPPtr = exprPtr; } comparador expresion {  comparacionPtr = crearNodo(str_auxcmp,exprCMPPtr,exprPtr); };
+      expresion { exprCMPPtr = exprPtr; } comparador expresion {  crearNodoCMP(str_auxcmp); };
 
 comparador: 
       CMP_MAYOR { strncpy(str_auxcmp,"BLE",10);}  
@@ -210,38 +242,48 @@ seleccion:
       seleccion_if                                          {seleccionPtr=seleccionIFPtr;}
       
 
-condicion_if:      IF P_A condicion P_C     {
-                                                if(bloquePtr){
-                                                      ponerenPila(pilaBloque,bloquePtr);
-                                                      bloquePtr=NULL;
-                                                }
-                                                else{
-                                                      if(sentenciaPtr)
-                                                            ponerenPila(pilaBloque,sentenciaPtr);
-                                                }
-                                                ponerenPila(pilaCondicion,condicionPtr);
-                                                };
-seleccion_if: condicion_if bloque ENDIF     {     fprintf(fp,"R 20: seleccion_if => IF P_A condicion P_C L_A bloque L_C \n");
+condicion_if:     IF P_A            {
+                                          contCond++;//Apilo Etiqueta correspondiente
+                                          sprintf(str_auxetiq,"%d",contCond);
+                                          auxEtiqPtr = malloc(sizeof(tNodo));
+                                          strcpy(auxEtiqPtr->info.dato,str_auxetiq);
+                                          ponerenPila(pilaEtiq,auxEtiqPtr);
+                                          
+                                    } 
+                  condicion P_C     {
+                                          if(bloquePtr){
+                                                ponerenPila(pilaBloque,bloquePtr);
+                                                bloquePtr=NULL;
+                                          }
+                                          else{
+                                                if(sentenciaPtr)
+                                                      ponerenPila(pilaBloque,sentenciaPtr);
+                                          }
+                                          ponerenPila(pilaCondicion,condicionPtr);
+                                    };
+seleccion_if: condicion_if bloque ENDIF     {   fprintf(fp,"R 20: seleccion_if => IF P_A condicion P_C L_A bloque L_C \n");
                                                 
                                                 if (topedePila(pilaCondicion)){
                                                       condicionPtr = topedePila(pilaCondicion);
-                                                      auxCondicionPtr = (tNodo*)malloc(sizeof(tNodo));
-                                                      strcpy(auxCondicionPtr->info.dato,condicionPtr->info.dato);
-                                                      auxCondicionPtr->izq = condicionPtr->izq;
-                                                      auxCondicionPtr->der = condicionPtr->der;
-                                                      condicionPtr = auxCondicionPtr;
                                                       sacardePila(pilaCondicion);
-                                                }     
-                                                seleccionIFPtr = crearNodo("IF",condicionPtr,bloquePtr);
-
+                                                }
+                                                sprintf(str_aux,"#FIN%s",topedePila(pilaEtiq));
+                                                auxIfPtr=crearHoja(str_aux,SinTipo);
+                                                sprintf(str_aux,"#BLOQ%s:",topedePila(pilaEtiq)); 					
+                                                condicionPtr=crearNodo(str_aux,condicionPtr,auxIfPtr);
+                                                
+                                                condicionPtr=crearNodo("Cuerpo",NULL,condicionPtr);
+                                                sprintf(str_aux,"#FIN%s:",topedePila(pilaEtiq)); 
+                                                seleccionIFPtr=crearNodo( "IF" , condicionPtr , bloquePtr );
+                                                seleccionIFPtr=crearNodo(str_aux,seleccionIFPtr,NULL);
+                                                
                                                 if (topedePila(pilaBloque)){
                                                       bloquePtr = topedePila(pilaBloque);
-                                                      auxBloquePtr = (tNodo*)malloc(sizeof(tNodo));
-                                                      strcpy(auxBloquePtr->info.dato,bloquePtr->info.dato);
-                                                      auxBloquePtr->izq = bloquePtr->izq;
-                                                      auxBloquePtr->der = bloquePtr->der;
-                                                      bloquePtr = auxBloquePtr;
                                                       sacardePila(pilaBloque);
+                                                }
+                                                
+                                                if (topedePila(pilaEtiq)){
+                                                      sacardePila(pilaEtiq);
                                                 }
 							}
       | condicion_if bloque {auxBloquePtr=bloquePtr;} ELSE bloque ENDIF
@@ -249,24 +291,34 @@ seleccion_if: condicion_if bloque ENDIF     {     fprintf(fp,"R 20: seleccion_if
                                                 fprintf(fp,"R 21: seleccion_if => condicion_if bloque ELSE bloque ENDIF\n");
                                                 if (topedePila(pilaCondicion)){
                                                       condicionPtr = topedePila(pilaCondicion);
-                                                      auxCondicionPtr = (tNodo*)malloc(sizeof(tNodo));
-                                                      strcpy(auxCondicionPtr->info.dato,condicionPtr->info.dato);
-                                                      auxCondicionPtr->izq = condicionPtr->izq;
-                                                      auxCondicionPtr->der = condicionPtr->der;
-                                                      condicionPtr = auxCondicionPtr;
                                                       sacardePila(pilaCondicion);
                                                 }
-                                                auxIfPtr = crearNodo("ELSE",auxBloquePtr,bloquePtr);
-                                                seleccionIFPtr = crearNodo("IF",condicionPtr,auxIfPtr);
+                                                
+							      sprintf(str_aux,"#ELSE%s",topedePila(pilaEtiq));
+							      auxIfPtr=crearHoja(str_aux,SinTipo);
+							      sprintf(str_aux,"#BLOQ%s:",topedePila(pilaEtiq)); 					
+							      condicionPtr=crearNodo(str_aux,condicionPtr,auxIfPtr);
+							      condicionPtr=crearNodo("Cuerpo",NULL,condicionPtr);
+							
+							      sprintf(str_aux,"#jmp FIN%s",topedePila(pilaEtiq));
+							      auxIfPtr=crearHoja(str_aux,SinTipo);
+							      seleccionIFPtr=crearNodo("Cuerpo",auxBloquePtr,auxIfPtr);
 
+							      sprintf(str_aux,"#ELSE%s:",topedePila(pilaEtiq));
+							      auxIfPtr=crearHoja(str_aux,SinTipo);
+							      seleccionIFPtr=crearNodo("Cuerpo",seleccionIFPtr,auxIfPtr);
+
+							      sprintf(str_aux,"#FIN%s:",topedePila(pilaEtiq));
+							      bloquePtr=crearNodo(str_aux,seleccionIFPtr,bloquePtr);
+							      seleccionIFPtr=crearNodo( "IF" , condicionPtr, bloquePtr );
+					
                                                 if (topedePila(pilaBloque)){
                                                       bloquePtr = topedePila(pilaBloque);
-                                                      auxBloquePtr = (tNodo*)malloc(sizeof(tNodo));
-                                                      strcpy(auxBloquePtr->info.dato,bloquePtr->info.dato);
-                                                      auxBloquePtr->izq = bloquePtr->izq;
-                                                      auxBloquePtr->der = bloquePtr->der;
-                                                      bloquePtr = auxBloquePtr;
                                                       sacardePila(pilaBloque);
+                                                }
+                                                
+                                                if (topedePila(pilaEtiq)){
+                                                      sacardePila(pilaEtiq);
                                                 }
 
                                           }
@@ -278,7 +330,7 @@ asignacion:
                                                                   validarCteEnTabla($1,yylineno);//Validar si no se asigna a una cte
                                                                   sprintf(str_aux, "%s",$1);
 				                                          asigPtr=crearHoja($1,tabla_simbolo[pos].tipo_dato);
-				                                          asigPtr=crearNodo("DOS_PUNTOS",asigPtr, exprAritPtr);
+				                                          asigPtr=crearNodo("DOS_PUNTOS",asigPtr, exprPtr);
                                                                   verificarTipoDato(&asigPtr,yylineno);
                                                                   };	  														
 
@@ -298,12 +350,17 @@ expresion_cadena:
 expresion_aritmetica: 
       termino                                                 { 
                                                                   exprAritPtr = terminoPtr; 
+                                                                  exprAritPtr->info.tipoDato= terminoPtr->info.tipoDato;
                                                                   fprintf(fp,"R 27: expresion_aritmetica => termino\n");}
       | expresion OP_RES termino                                { 
                                                                   exprAritPtr=crearNodo("OP_RES", exprPtr, terminoPtr);
+                                                                  auxOperaciones++;
+                                                                  exprAritPtr->info.tipoDato= terminoPtr->info.tipoDato;
                                                                   fprintf(fp,"R 28: expresion_aritmetica => expresion OP_RES termino \n");}
       | expresion OP_SUM termino                                { 
                                                                   exprAritPtr=crearNodo("OP_SUM", exprPtr, terminoPtr);
+                                                                  auxOperaciones++;
+                                                                  exprAritPtr->info.tipoDato= terminoPtr->info.tipoDato;
                                                                   fprintf(fp,"R 29: expresion_aritmetica => expresion OP_SUM termino\n");};
 
 
@@ -361,12 +418,17 @@ decl_constante:
 termino: 
       factor                                                  {
                                                                   terminoPtr = factorPtr;
+                                                                  terminoPtr->info.tipoDato= factorPtr->info.tipoDato;
                                                                   fprintf(fp,"R 36: termino => factor\n");}
       | termino OP_MUL factor                                 {
                                                                   terminoPtr=crearNodo("OP_MUL", terminoPtr, factorPtr);
+                                                                  auxOperaciones++;
+                                                                  terminoPtr->info.tipoDato= factorPtr->info.tipoDato;
                                                                   fprintf(fp,"R 37: termino => termino OP_MUL factor \n");}
       | termino OP_DIV factor                                 {
                                                                   terminoPtr=crearNodo("OP_DIV", terminoPtr, factorPtr);
+                                                                  terminoPtr->info.tipoDato= factorPtr->info.tipoDato;
+                                                                  auxOperaciones++;
                                                                   fprintf(fp,"R 38: termino => termino OP_DIV factor\n");};
 
 factor:           
@@ -388,13 +450,18 @@ factor:
                                                                 factorPtr = crearHoja(str_aux,CteFloat);
                                                               };
 
-      | P_A {     ponerenPila(pilaExpresion,exprAritPtr);
-                  } 
+      | P_A {     
+                  if(exprAritPtr){
+                        ponerenPila(pilaExpresion,exprAritPtr);
+                  }
+            } 
             expresion_aritmetica P_C                                     
                                                             { 
                                                                   factorPtr = exprAritPtr;
-                                                                  exprAritPtr = topedePila(pilaExpresion);
-                                                                  sacardePila(pilaExpresion);
+                                                                  if(topedePila(pilaExpresion)){
+                                                                        exprAritPtr = topedePila(pilaExpresion);
+                                                                        sacardePila(pilaExpresion);
+                                                                  }
                                                                   fprintf(fp,"R 42: factor => P_A expresion P_C\n");
                                                             }
       
@@ -404,29 +471,78 @@ factor:
                                                             };
 
 expr_maximo: 
-      MAXIMO P_A lista_expresion P_C                        { 
-                                                                  fprintf(fp,"R 44: expr_maximo => MAXIMO P_A lista_expresion P_C\n");
-                                                                  exprMaximoPtr = auxMaxNodo;
-                                                            };
+      MAXIMO P_A                    {
+                                          contCond++;//Apilo Etiqueta correspondiente
+                                          sprintf(str_auxetiq,"%d",contCond); // nro de etiqueta
+                                          auxEtiqPtr = malloc(sizeof(tNodo));
+                                          strcpy(auxEtiqPtr->info.dato,str_auxetiq);
+                                          ponerenPila(pilaEtiq,auxEtiqPtr); // apilo nro de etiqueta
+                                          
+                                    }
+      lista_expresion P_C           { 
+                                          fprintf(fp,"R 44: expr_maximo => MAXIMO P_A lista_expresion P_C\n");
+                                          exprMaximoPtr = auxMaxNodo;
+                              
+                                          sprintf(str_aux,"_Max%s",topedePila(pilaEtiq));
+                                          auxMaxNodo = malloc(sizeof(tNodo));
+                                          strcpy(auxMaxNodo->info.dato,auxMaximoHojaPtr->info.dato);
+                                          auxMaxNodo->info.tipoDato=tipoDatoMax;
+                                          exprMaximoPtr=crearNodo("Maximo",exprMaximoPtr,auxMaxNodo);
+                                          
+                                          if (topedePila(pilaEtiq)){
+                                                sacardePila(pilaEtiq);
+                                          }
+                                    };
 
 lista_expresion: 
       lista_expresion COMA expresion_aritmetica
-															{fprintf(fp,"R 43: lista_expresion => lista_expresion COMA expresion_aritmetica;\n");
-															auxMaximoHojaPtr = crearHoja("@Max",Float);
-															auxMaxSelNodo = crearNodo("CMP_MAYOR",exprAritPtr,auxMaximoHojaPtr);
-															auxMaximoHojaPtr = crearHoja("@Max",Float);
-                                                                                          //TODO  insertar en tabla de simbolos @Max# concatenar con un numero
-															auxMaxAsigNodo = crearNodo("DOS_PUNTOS",auxMaximoHojaPtr,exprAritPtr);											
-															auxMaxIFNodo = crearNodo("IF",auxMaxSelNodo,auxMaxAsigNodo);
-															auxMaxNodoAnterior = auxMaxNodo;
-															auxMaxNodo = crearNodo("Maximo",auxMaxNodoAnterior,auxMaxIFNodo);
-															};
+                                                      {
+                                                      fprintf(fp,"R 43: lista_expresion => lista_expresion COMA expresion_aritmetica;\n");
+                                                      // IF ExpresionN > @max
+                                                      // THEN
+                                                      // @max = ExpresionN
+                                                      // ENDIF
+
+                                                      contExpMax++;
+
+                                                      sprintf(str_aux,"_Max%s",topedePila(pilaEtiq));
+                                                      auxMaximoHojaPtr = crearHoja(str_aux,tipoDatoMax);
+                                                      
+                                                      auxMaxIFNodo = crearNodo("CMP",exprAritPtr,auxMaximoHojaPtr);
+                                                      auxMaxIFNodo = crearNodo("BLE",auxMaxIFNodo,NULL);
+                                                      auxMaxCond=auxMaxIFNodo;
+
+                                                      sprintf(str_aux,"#FINMAX%d",contExpMax); // ELSE JUMP TO FINMAX
+                                                      auxIfPtr=crearHoja(str_aux,tipoDatoMax);
+                                                      auxMaxCond=crearNodo("CUERPO",auxMaxCond,auxIfPtr);
+                                                      
+                                                      auxMaximoHojaPtr = crearHoja(auxMaximoHojaPtr->info.dato,tipoDatoMax);
+                                                      int auxTipoDato = exprAritPtr->info.tipoDato;
+                                                      exprAritPtr = crearNodo(exprAritPtr->info.dato,exprAritPtr->izq,exprAritPtr->der);
+                                                      exprAritPtr->info.tipoDato = auxTipoDato;
+                                                      
+                                                      auxMaxAsigNodo = crearNodo("DOS_PUNTOS",auxMaximoHojaPtr,exprAritPtr); // @MAX = E
+
+                                                      auxMaxIFNodo = crearNodo("IF",auxMaxCond,auxMaxAsigNodo);	
+                                                      sprintf(str_aux,"#FINMAX%d:",contExpMax);
+                                                      auxMaxIFNodo=crearNodo(str_aux,auxMaxIFNodo,NULL);
+                                                      										
+                                                      auxMaxNodoAnterior = auxMaxNodo;
+                                                      auxMaxNodo = crearNodo("Maximo",auxMaxNodoAnterior,auxMaxIFNodo);
+                                                      // FIN ETIQUETA
+
+                                                      };
 															
       | expresion_aritmetica								
-															{ fprintf(fp,"R 43: lista_expresion => expresion_aritmetica;\n");
-																auxMaximoHojaPtr = crearHoja("@Max",Float);
-																auxMaxNodo = crearNodo("DOS_PUNTOS",auxMaximoHojaPtr,exprAritPtr);
-															};
+                                                      { 
+                                                            fprintf(fp,"R 43: lista_expresion => expresion_aritmetica;\n");
+                                                            
+                                                            sprintf(str_aux,"_Max%s",topedePila(pilaEtiq)); // crea nombre @MaxN donde N se desapila
+                                                            tipoDatoMax=resolverTipoDatoMaximo(exprAritPtr->info.tipoDato);
+                                                            agregarEnTabla(str_aux,yylineno,tipoDatoMax); // crea @MaxN en ts
+                                                            auxMaximoHojaPtr = crearHoja(str_aux,tipoDatoMax); // crea @MaxN
+                                                            auxMaxNodo = crearNodo("DOS_PUNTOS",auxMaximoHojaPtr,exprAritPtr); // @MaxN = E1
+                                                      };
 
 %%
 
@@ -435,6 +551,8 @@ int main(int argc,char *argv[])
       pilaExpresion = crearPila();      
       pilaBloque = crearPila();
       pilaCondicion = crearPila();
+      pilaEtiq = crearPila();
+      pilaEtiqExpMax = crearPila();
       fp = fopen("reglas.txt","w"); 
       if (!fp)
             printf("\nNo se puede abrir el archivo reglas.txt \n");
@@ -452,10 +570,14 @@ int main(int argc,char *argv[])
             yyparse();
             fclose(yyin);
       }
+      generarAsm(&bloquePtr);
       fclose(fp);
       fclose(graph);
       vaciarPila(pilaExpresion);      
       vaciarPila(pilaBloque);      
       vaciarPila(pilaCondicion);
+      vaciarPila(pilaEtiq);
+      vaciarPila(pilaEtiqExpMax);
+
       return 0;
 }

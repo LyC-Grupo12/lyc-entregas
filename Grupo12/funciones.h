@@ -54,6 +54,7 @@ void mensajeDeError(enum tipoError error,const char* info, int linea);
 void agregarVarATabla(char* nombre,int esCteConNombre,int linea);
 void agregarTiposDatosATabla(void);
 void agregarCteATabla(int num);
+void agregarEnTabla(char* nombre,int linea,int tipo);
 int chequearVarEnTabla(char* nombre,int linea);
 int verificarTipoDato(tArbol * p,int linea);
 void verificarTipo(tArbol* p,int tipoAux,int linea);
@@ -65,6 +66,12 @@ char * reemplazarCaracter(char * aux);
 char* normalizarId(const char* cadena);
 void validarCteEnTabla(char* nombre,int linea);
 void agregarValorACte(int tipo);
+void generarAsm(tArbol *p);
+void recorrerArbol(tArbol *arbol,FILE * pf);
+void tratarNodo(tArbol* nodo,FILE *pf);
+void crearNodoCMP(char * comp);
+void invertirSalto(tArbol *p);
+int resolverTipoDatoMaximo(int tipo);
 
 tNodo* crearNodo(const char* dato, tNodo *pIzq, tNodo *pDer);
 tNodo* crearHoja(char* dato,int tipo);
@@ -108,6 +115,29 @@ tArbol 	asigPtr,			//Puntero de asignaciones
 		condicionPtr,
 		auxCondicionPtr,
 		auxMaxNodo,
-		exprMaximoPtr;
+		exprMaximoPtr,
+		auxEtiqPtr,
+		auxWhilePtr,
+		auxMaxCond;
+
+struct m10_stack_entry {
+  tNodo *dato;
+  struct m10_stack_entry *next;
+};
+
+struct m10_stack_t
+{
+  struct m10_stack_entry *tope;
+  size_t tam; 
+};
+
+struct m10_stack_t *crearPila(void);
+tNodo *copiarDato(tNodo *);
+void ponerenPila(struct m10_stack_t *, tNodo *value);
+tNodo *topedePila(struct m10_stack_t *);
+void sacardePila(struct m10_stack_t *);
+void vaciarPila(struct m10_stack_t *);
+void borrarPila(struct m10_stack_t **);
+typedef struct m10_stack_t m10_stack_t;
 
 #endif
